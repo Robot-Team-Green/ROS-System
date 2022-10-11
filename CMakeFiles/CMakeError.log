@@ -1,0 +1,53 @@
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/make "cmTryCompileExec105238905/fast"
+/usr/bin/make -f CMakeFiles/cmTryCompileExec105238905.dir/build.make CMakeFiles/cmTryCompileExec105238905.dir/build
+make[1]: Entering directory `/home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec105238905.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTryCompileExec105238905.dir/CheckSymbolExists.c.o   -c /home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTryCompileExec105238905
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec105238905.dir/link.txt --verbose=1
+/usr/bin/cc       CMakeFiles/cmTryCompileExec105238905.dir/CheckSymbolExists.c.o  -o cmTryCompileExec105238905 -rdynamic 
+CMakeFiles/cmTryCompileExec105238905.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x16): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+make[1]: Leaving directory `/home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp'
+make[1]: *** [cmTryCompileExec105238905] Error 1
+make: *** [cmTryCompileExec105238905/fast] Error 2
+
+File /home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/make "cmTryCompileExec727750508/fast"
+/usr/bin/make -f CMakeFiles/cmTryCompileExec727750508.dir/build.make CMakeFiles/cmTryCompileExec727750508.dir/build
+make[1]: Entering directory `/home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec727750508.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTryCompileExec727750508.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-2.8/Modules/CheckFunctionExists.c
+Linking C executable cmTryCompileExec727750508
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec727750508.dir/link.txt --verbose=1
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTryCompileExec727750508.dir/CheckFunctionExists.c.o  -o cmTryCompileExec727750508 -rdynamic -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+make[1]: Leaving directory `/home/uxa-ksu/MyProject/ROS-UXA-System/CMakeFiles/CMakeTmp'
+make[1]: *** [cmTryCompileExec727750508] Error 1
+make: *** [cmTryCompileExec727750508/fast] Error 2
+
+
