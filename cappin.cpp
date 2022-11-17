@@ -8,7 +8,7 @@ using namespace std;
 Mat genMask(Mat frame){
 
 	//declare variables needed
-	Mat hsv, lower, upper, red, masked;
+	Mat hsv, lower, upper, redMask, masked;
 
 	//convert bgr frame to hsv frame
 	cvtColor( frame, hsv, COLOR_BGR2HSV) ;
@@ -17,16 +17,16 @@ Mat genMask(Mat frame){
     //lower_mask = cv.inRange(hsv, lower1, upper1)
     //upper_mask = cv.inRange(hsv, lower2, upper2)
 
-    inRange(hsv, Scalar(0, 100, 20), Scalar(10, 255, 255), lower);
-    inRange(hsv, Scalar(160, 50, 50), Scalar(179, 255, 255), upper);
+    inRange(hsv, Scalar(0, 70, 50), Scalar(10, 255, 255), lower);
+    inRange(hsv, Scalar(170, 70, 50), Scalar(180, 255, 255), upper);
 
     //combine masks into one mask, then perform a bitwise and on the frame (change to hsv?? PLEASE CHECK THIS)
     //ERROR - redMask not working, bitwise_and also not working
-    redMask = lower & upper;
-    bitwise_and(hsv,hsv, masked, mask=redMask)
+    redMask = lower | upper;
+    bitwise_and(hsv,hsv, masked, redMask);
 
     //ERROR - no return statement in function returning non void
-    return masked
+    return masked;
 
 }
 
@@ -36,8 +36,8 @@ Mat genMask(Mat frame){
 struct result {
 	double xAvg;
 	double yAvg;
-	bool calculate;
-}
+	int calculate; //if this is 0 it is false if it is 1 it is true
+};
 
 //wtf is an auto again??
 auto getPos(Mat frame) {
@@ -46,20 +46,22 @@ auto getPos(Mat frame) {
     result calcs;
 
     //set values
-	bool calculate = false;
-	int height = frame.shape[0]; // height
-	int width = frame.shape[1]; // width
+	int calculate = 0;
+	int height = frame.rows; // height
+	int width = frame.cols; // width
 	double xAvg = 0;
 	double yAvg = 0;
 	int count = 0;
+	
+	//unsigned char *input = (unsigned char*)(frame.data);
 
 	//go through all pixels, if pixel is not black then add it to the average
 	for (int y = 0; y < height; y++){
 		for (int x = 0; x < width; x++){
-			if (frame[y,x] != 0){
-				xAvg += x
-				yAvg += y
-				count = count+1
+			if (frame.at<char>(y,x) != 0){ //input[frame.step * x + y]
+				xAvg = xAvg + x;
+				yAvg = yAvg + y;
+				count = count+1;
 			}
 		}
 	}
@@ -67,13 +69,15 @@ auto getPos(Mat frame) {
 	if (count > 350){ //If red pixel count is above x amount
 		xAvg = (xAvg/count) * 2;
 		yAvg = (yAvg/count) * 2;
-		calculate = true;
+		calculate = 1;
 	}
 
+	//cout << "height " << xAvg << " width " << yAvg << " count " << count << endl;
 	//store the values gotten into calcs and return it
 	calcs.xAvg = xAvg;
 	calcs.yAvg = yAvg;
 	calcs.calculate = calculate;
+	cout << calculate << endl;
     return calcs;
 
     //in main, get the struct by declaring result calcs, then calcs = getPos(Mat frame) without Mat
@@ -107,7 +111,7 @@ int main(int argc, char* argv[])
 	namedWindow(windowName);
 
 
-	//here we go part 2 (while loop for getting frames and 
+	//here we go part 2 (while loop for getting frames and such)
 	while (true){
 
 		//declare my variables and structures
@@ -142,15 +146,15 @@ int main(int argc, char* argv[])
 		//should put the struct into calcs
 		//ERROR - expected primary expression before 'frame'
 		//ERROR - getPos was not declared in this scop, did you mean fgetpos?
-		calcs = getPos(Mat frame);
+		calcs = getPos(rsMask);
 
 		//if it calculated enough reds, run this
-		if (calcs.calculate = true){
+		if (calcs.calculate == 1){
 
 			//python variant, NEEDS REWRITE (done?)
 			//basically draws a smol circle at the center for visualization purposes. mostly unnecessary for the final.
 			//cv.circle(frame, (int(xAvg), int(yAvg)), 10, (255,0,0), 5);
-			circle(frame, Point(calcs.xAvg, calcs.yAvg), 10, (255,0,0), 5);
+			circle(frame, Point(calcs.xAvg, calcs.yAvg), 10, Scalar(255,0,0), 5);
 
 			//declare these strings now
 			string textx, texty;
@@ -202,11 +206,11 @@ int main(int argc, char* argv[])
 
 			//python variant, NEEDS REWRITE (I think I did this right)
 			//more unnecessary code other than for debugging and such. idk. keep it for now.
-			putText(frame, textx, Point(0, 430), FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2);
-			putText(frame, texty, Point(0, 460), FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2);
+			putText(frame, textx, Point(0, 430), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0), 2);
+			putText(frame, texty, Point(0, 460), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0), 2);
 
 		}
-
+		
 		//this should work, and should output the circle as well as the text showing if it's to the left or right
 		imshow(windowName, frame);
 
@@ -219,3 +223,8 @@ int main(int argc, char* argv[])
 	}
 	return 0;
 }
+
+
+//run commands for jodruZ2W
+//g++ -o cappin cappin.cpp -I/usr/include/opencv4 -lopencv_core -lopencv_videoio -lopencv_highgui -lopencv_imgproc -lopencv_imgcodecs
+//./cappin
