@@ -1,10 +1,12 @@
 #include <opencv4/opencv2/opencv.hpp>
 #include <iostream>
+#include <chrono>
 
+using namespace std::chrono;
 using namespace cv;
 using namespace std;
 
-//function to make a mask of the frame given
+//genMask function; returns a Mat of the mask given a frame
 Mat genMask(Mat frame){
 
 	//declare variables needed
@@ -20,26 +22,22 @@ Mat genMask(Mat frame){
     inRange(hsv, Scalar(0, 70, 50), Scalar(10, 255, 255), lower);
     inRange(hsv, Scalar(170, 70, 50), Scalar(180, 255, 255), upper);
 
-    //combine masks into one mask, then perform a bitwise and on the frame (change to hsv?? PLEASE CHECK THIS)
-    //ERROR - redMask not working, bitwise_and also not working
+    //combine masks into one mask, then perform a bitwise_and on the frame
     redMask = lower | upper;
     bitwise_and(hsv,hsv, masked, redMask);
 
-    //ERROR - no return statement in function returning non void
     return masked;
 
 }
 
 //structure to store results of getPos
-//ERROR - new types may not be defined in a return type
-//ERROR - two or more data types in declaration of getPos
 struct result {
 	double xAvg;
 	double yAvg;
 	int calculate; //if this is 0 it is false if it is 1 it is true
 };
 
-//wtf is an auto again??
+//getPos function; returns a structure
 auto getPos(Mat frame) {
 
 	//declare the result structure as calcs
@@ -53,8 +51,6 @@ auto getPos(Mat frame) {
 	double yAvg = 0;
 	int count = 0;
 	
-	//unsigned char *input = (unsigned char*)(frame.data);
-
 	//go through all pixels, if pixel is not black then add it to the average
 	for (int y = 0; y < height; y++){
 		for (int x = 0; x < width; x++){
@@ -65,60 +61,53 @@ auto getPos(Mat frame) {
 			}
 		}
 	}
-
-	if (count > 350){ //If red pixel count is above x amount
-		xAvg = (xAvg/count) * 2;
-		yAvg = (yAvg/count) * 2;
+	
+	//If red pixel count is above x amount
+	if (count > 1200){ 
+		xAvg = (xAvg/count);// * 2;
+		yAvg = (yAvg/count);// * 2;
 		calculate = 1;
 	}
 
-	//cout << "height " << xAvg << " width " << yAvg << " count " << count << endl;
 	//store the values gotten into calcs and return it
 	calcs.xAvg = xAvg;
 	calcs.yAvg = yAvg;
 	calcs.calculate = calculate;
-	cout << calculate << endl;
-    return calcs;
 
-    //in main, get the struct by declaring result calcs, then calcs = getPos(Mat frame) without Mat
-    //then calcs.xAvg, calcs.yAvg, calcs.calculate
+    return calcs;
 }
 
 
-//here we go
+//main function
 int main(int argc, char* argv[])
 {
 	//open up the video capture, if it can't then just end the function
 	VideoCapture cap(0);
-
 	if (cap.isOpened() == false){
 		cout << "Cannot open camera." << endl;
 		cin.get();
 		return -1;
 	}
-
-	//I don't really need this since I'll be resizing the frame anyways, but leave in for now
-	double dWidth = cap.get(CAP_PROP_FRAME_WIDTH);
-	double dHeight = cap.get(CAP_PROP_FRAME_WIDTH);
-	cout << "Res of vid : " << dWidth << "x" << dHeight << endl;
-
-	//we use 640x480 because we gangsta
+	
+	
+	//use 640x480 for all frames captured
 	double width = 640;
 	double height = 480;
 
-	//no clue why I need this but leave in just in case something breaks
+	//name the window that displays the frame
 	string windowName = "cam";
 	namedWindow(windowName);
 
 
-	//here we go part 2 (while loop for getting frames and such)
+	//while loop for image processing
 	while (true){
 
-		//declare my variables and structures
-		Mat frame, mask, rsMask;
+		auto start = high_resolution_clock::now();
+		//declare variables and structures
+		Mat frame, mask, vBin;
 		result calcs;
 
-		//can the capture read the frame? if so, great! if not, break!
+		//break if frame cannot be read
 		bool bSuccess = cap.read(frame);
 		if (bSuccess == false){
 			cout << "Can't read frame, disconnecting." << endl;
@@ -126,58 +115,84 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		//first resize to fit the 640x480 I've been working with this whole time
+		//resize and declare a finalContour for use later
 		resize(frame, frame, Size(width, height));
-
-		//get le mask
+		Mat finalContour(frame.rows, frame.cols, CV_8UC1, Scalar::all(0));
+		
+		//generate a mask of all red pixels of frame
 		mask = genMask(frame);
+		
 
-		//python variant, NEEDS REWRITE (done?)
-		//split the mask into hue, saturation, value. really don't need the h and s, can I toss those out a window?
+		//split the mask into hue, saturation, value, and keep value.
 		Mat channels[3];
 		split(mask, channels);
 		Mat v = channels[2];
+		
+		//changes value to vBin which is a binary image of the red pixels detected
+		threshold(v, vBin, 127, 255, 0);
+		
+		
+		/*Find all contours, get biggest contour, print only that contour
+		* This helps identify the object that needs to be tracked without taking
+		* other objects into account
+		*/
+		vector<vector<Point> > contours;
+        //vector<Vec4i> hierarchy;
+		findContours(vBin.clone(), contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+		double bigArea = 0;
+		int bigContour;
+		for (int i = 0; i < contours.size(); i++){
+			double area = contourArea(contours[i]);
+			if (area > bigArea){
+				bigArea = area;
+				bigContour = i;
+			}
+		}
+		
+		if (bigContour > -1){
+			drawContours(finalContour, contours, bigContour, Scalar(255), FILLED);
+		}
+		else{
+			continue;
+		}
+		
 
-		//rescale to be smoller, maybe use resize? would be resize(v, rsMask, Size(width/2, height/2));
-		//edit: put it in already because why write some function when I don't need to
-		//rsMask = rescaleFrame(v, 50);
-		resize(v, rsMask, Size(width/2, height/2));
+		//rescale to be smaller if needed. Be sure to update getPos as well if used.
+		//resize(v, rsMask, Size(width/2, height/2));
 
-		//should put the struct into calcs
-		//ERROR - expected primary expression before 'frame'
-		//ERROR - getPos was not declared in this scop, did you mean fgetpos?
-		calcs = getPos(rsMask);
+		//get position of the center of object, if it exists
+		calcs = getPos(finalContour);
 
-		//if it calculated enough reds, run this
+		//if it calculated enough reds, run.
 		if (calcs.calculate == 1){
 
-			//python variant, NEEDS REWRITE (done?)
-			//basically draws a smol circle at the center for visualization purposes. mostly unnecessary for the final.
-			//cv.circle(frame, (int(xAvg), int(yAvg)), 10, (255,0,0), 5);
+			//draw circle at center. unnecessary outside of testing.
 			circle(frame, Point(calcs.xAvg, calcs.yAvg), 10, Scalar(255,0,0), 5);
 
 			//declare these strings now
 			string textx, texty;
 
-			//the following is my thoughts on how to do this from python. it's probably important
+			//the following is my thoughts on how to do this from python
 			/*
-			Center of a screen with 640 and 480 is roughly 320,240
-			So let's make a "rectangle of center" that counts as the center.
-			As long as the average center is in that rectangle, it's for all intents and purposes in the center
-
-			Let's then define a larger rectangle that is also "in" the center.
-			If color pixels start popping outside of this bigger rectangle, the robot is close enough
-			That should account for safety
-
-			Let's say small square is 40x40 and big square is 200x200 to start
+			* Center of a screen with 640 and 480 is roughly 320,240
+			* So let's make a "rectangle of center" that counts as the center.
+			* As long as the average center is in that rectangle, 
+			* it's for all intents and purposes in the center
+			* Let's then define a larger rectangle that is also "in" the center.
+			* If color pixels start popping outside of this bigger rectangle, 
+			* the robot is close enough
+			* That should account for safety
+			* Let's say small square is 40x40 and big square is 200x200 to start
 			*/
+			//addendum: I have no idea how fast this thing will go and I think the main
+			//thing is to have it track an object, so I'm leaving the "too close" clause
+			//out for now.
 
 			//idk what this is for but I have a feeling if I delete it something will break
 			string text = "";
 
-			//Center camera/head on object
-			//Gonna need to change this up so that it outputs the right strings to the console and doesn't print to frame
-			//The main idea is to get the robot to read these strings and turn, rn it's just for visualization
+			//Center camera/head on object (needs ros strings to print to console)
+			
 			if (calcs.xAvg > 340){
 				//look right until it's in center rect
 				textx = "Object is to right";
@@ -202,19 +217,20 @@ int main(int argc, char* argv[])
 				texty = "Object is in center on y axis";
 			}
 
-			//turn body so that it and the head are facing object, then take a step forward
-
-			//python variant, NEEDS REWRITE (I think I did this right)
-			//more unnecessary code other than for debugging and such. idk. keep it for now.
+			//more unnecessary code for final, but print location with textx and texty
 			putText(frame, textx, Point(0, 430), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0), 2);
 			putText(frame, texty, Point(0, 460), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0), 2);
 
 		}
 		
-		//this should work, and should output the circle as well as the text showing if it's to the left or right
+		auto stop = high_resolution_clock::now();
+		auto duration = duration_cast<microseconds>(stop - start);
+		
+		cout << "Time taken: " << duration.count() << endl;
+		
 		imshow(windowName, frame);
 
-		//ekoroshia bitch (hit esc for kill command)
+		//hit esc for kill command
 		if (waitKey(10) == 27)
 		{
 			cout << "Esc key was pressed, vid stopping..." << endl;
@@ -224,7 +240,9 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-
-//run commands for jodruZ2W
-//g++ -o cappin cappin.cpp -I/usr/include/opencv4 -lopencv_core -lopencv_videoio -lopencv_highgui -lopencv_imgproc -lopencv_imgcodecs
-//./cappin
+/*
+* run commands
+* apt install libopencv-dev
+* g++ -o cappin cappin.cpp -I/usr/include/opencv4 -lopencv_core -lopencv_videoio -lopencv_highgui -lopencv_imgproc -lopencv_imgcodecs
+* ./cappin
+*/
